@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Audio Exprés">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Audio Exprés</title>
+<style>
+:root{--bg:#0b1220;--panel:#141d30;--panel2:#1b2742;--txt:#eef2fb;--mut:#93a0bd;--acc:#f5c451;--acc2:#3b82f6;--ok:#34d399;--rojo:#ff6b6b;--r:16px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:17px/1.5 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif}
+body{display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.hide{display:none!important}
+
+/* ---------- Inicio ---------- */
+#inicio{flex:1;overflow:auto;padding:20px 16px 40px;max-width:720px;width:100%;margin:0 auto}
+h1{font-size:26px;margin:6px 0 2px}
+.sub{color:var(--mut);margin:0 0 18px;font-size:15px}
+.cont{display:block;width:100%;text-align:left;background:linear-gradient(135deg,#1d3a7a,#2a4fa8);border-radius:var(--r);padding:18px;margin-bottom:22px;box-shadow:0 6px 24px #0006}
+.cont small{display:block;color:#cfe0ff;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+.cont b{display:block;font-size:20px;margin:4px 0 2px}
+.cont span{color:#d9e6ff;font-size:15px}
+.cont .go{display:inline-block;margin-top:12px;background:var(--acc);color:#1a1405;font-weight:700;padding:10px 20px;border-radius:999px}
+.tema{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--panel);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
+.tema:active{background:var(--panel2)}
+.tema .n{flex:none;width:46px;height:46px;border-radius:12px;background:var(--panel2);display:grid;place-items:center;font-weight:800;font-size:19px;color:var(--acc)}
+.tema .i{flex:1;min-width:0}
+.tema .i b{display:block;font-size:16px;line-height:1.3}
+.tema .i span{color:var(--mut);font-size:14px}
+.barra{height:4px;background:#2a3858;border-radius:4px;margin-top:7px;overflow:hidden}
+.barra i{display:block;height:100%;background:var(--ok);width:0}
+.aviso{color:var(--mut);font-size:13.5px;margin-top:22px}
+
+/* ---------- Reproductor ---------- */
+#play{flex:1;display:flex;flex-direction:column;min-height:0}
+.top{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--panel)}
+.top .ttl{flex:1;min-width:0}
+.top .ttl small{color:var(--mut);display:block;font-size:12px}
+.top .ttl b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
+.ib{width:44px;height:44px;border-radius:12px;background:var(--panel2);font-size:20px;flex:none}
+#texto{flex:1;overflow:auto;padding:14px 16px 40px;scroll-behavior:smooth}
+.it{padding:10px 12px;margin:0 0 6px;border-radius:12px;color:#8a97b3;cursor:pointer;font-size:17px;line-height:1.55}
+.it.k-t{color:var(--acc);font-weight:800;font-size:19px;margin-top:18px}
+.it.k-h{color:#cfd9f0;font-weight:700;font-size:18px;margin-top:12px}
+.it.k-v{font-size:16px;padding-left:22px;position:relative}
+.it.k-v:before{content:"▸";position:absolute;left:8px;color:var(--acc2)}
+.it.on{background:#1d2c52;color:#fff;box-shadow:inset 3px 0 0 var(--acc)}
+.it.k-h.on,.it.k-t.on{color:var(--acc)}
+.ctl{background:var(--panel);padding:10px 12px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #243153}
+.prog{display:flex;align-items:center;gap:10px;color:var(--mut);font-size:13px;font-variant-numeric:tabular-nums}
+.prog input{flex:1;accent-color:var(--acc);height:28px}
+.fila{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px}
+.b{height:58px;min-width:58px;border-radius:16px;background:var(--panel2);font-size:22px;padding:0 10px}
+.b small{display:block;font-size:11px;color:var(--mut);margin-top:-4px}
+.b.big{height:72px;min-width:96px;background:var(--acc);color:#1a1405;font-size:34px;font-weight:800}
+.b:active{filter:brightness(1.25)}
+.vel{height:44px;border-radius:12px;background:var(--panel2);padding:0 12px;font-weight:700;font-size:15px;color:var(--acc)}
+.mini{display:flex;justify-content:space-between;margin-top:6px}
+
+/* ---------- Índice (hoja) ---------- */
+#indice{position:fixed;inset:0;background:#000a;z-index:10;display:flex;align-items:flex-end}
+#indice .hoja{background:var(--panel);width:100%;max-height:82%;border-radius:20px 20px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+#indice header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #243153;font-weight:700}
+#lista{overflow:auto;padding:6px 8px 20px}
+.ar{display:block;width:100%;text-align:left;padding:11px 12px;border-radius:10px;font-size:15.5px;line-height:1.35}
+.ar.t{color:var(--acc);font-weight:800;margin-top:10px;font-size:14px;letter-spacing:.02em}
+.ar.on{background:#1d2c52}
+.ar .s{font-size:11px;font-weight:800;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+.ar .s.of{background:var(--rojo);color:#2b0505}
+.ar .s.ex{background:var(--acc);color:#241a02}
+.ar .tm{float:right;color:var(--mut);font-size:12px}
+</style>
+</head>
+<body>
+
+<section id="inicio">
+  <h1>🎧 Audio Exprés</h1>
+  <p class="sub">Estudia conduciendo: elige tema o continúa donde lo dejaste.</p>
+  <button class="cont hide" id="btn-cont"><small>Continuar</small><b id="c-tit"></b><span id="c-sub"></span><br><span class="go">▶ Seguir escuchando</span></button>
+  <div id="temas"></div>
+  <p class="aviso">Con el móvil bloqueado y por Bluetooth, los botones del coche saltan de artículo (⏮ ⏭) y pausan. Añade esta página a la pantalla de inicio para usarla como app.</p>
+</section>
+
+<section id="play" class="hide">
+  <div class="top">
+    <button class="ib" id="btn-atras" aria-label="Volver">‹</button>
+    <div class="ttl"><small id="p-tema"></small><b id="p-art"></b></div>
+    <button class="ib" id="btn-indice" aria-label="Índice de artículos">☰</button>
+  </div>
+  <div id="texto"></div>
+  <div class="ctl">
+    <div class="prog"><span id="t-act">0:00</span><input type="range" id="seek" min="0" max="1000" value="0"><span id="t-res">-0:00</span></div>
+    <div class="fila">
+      <button class="b" id="b-ant" aria-label="Artículo anterior">⏮<small>art.</small></button>
+      <button class="b" id="b-m15" aria-label="Atrás 15 segundos">↺<small>15 s</small></button>
+      <button class="b big" id="b-play" aria-label="Reproducir / pausar">▶</button>
+      <button class="b" id="b-p15" aria-label="Adelante 15 segundos">↻<small>15 s</small></button>
+      <button class="b" id="b-sig" aria-label="Artículo siguiente">⏭<small>art.</small></button>
+    </div>
+    <div class="mini"><button class="vel" id="b-vel">1×</button><span id="p-pos" style="color:var(--mut);font-size:13px;align-self:center"></span></div>
+  </div>
+</section>
+
+<div id="indice" class="hide">
+  <div class="hoja"><header><span id="i-tit">Índice</span><button class="ib" id="i-cerrar">✕</button></header><div id="lista"></div></div>
+</div>
+
+<audio id="au" preload="auto" playsinline></audio>
+
+<script>
+(function(){
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const au = $('au');
+  const VELS = [1, 1.15, 1.3, 1.5, 1.75, 2];
+  let indice = null, tema = null, datos = null, parte = 0, pendiente = null, items = [], elItems = [], actItem = -1, vel = 1, ultGuardado = 0;
+
+  const ls = {
+    get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+    set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  };
+  const fmt = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60; return (h ? h + ':' + String(m).padStart(2,'0') : m) + ':' + String(x).padStart(2,'0'); };
+  const fmtH = s => { const m = Math.round(s/60); return m >= 60 ? Math.floor(m/60) + ' h ' + String(m%60).padStart(2,'0') + ' min' : m + ' min'; };
+  const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  // ---------------- datos ----------------
+  async function cargarIndice(){
+    try{
+      const r = await fetch('datos/indice.json', {cache:'no-cache'});
+      indice = await r.json();
+      ls.set('indice-cache', indice);
+    }catch(e){ indice = ls.get('indice-cache', {temas:[]}); }
+    pintarInicio();
+  }
+  async function cargarTema(n){
+    if(datos && datos.tema === n) return datos;
+    const r = await fetch(`datos/T${n}.json`);
+    datos = await r.json();
+    return datos;
+  }
+
+  // ---------------- inicio ----------------
+  function pintarInicio(){
+    const cont = $('temas'); cont.innerHTML = '';
+    const pos = ls.get('pos', null), todas = ls.get('posTemas', {});
+    (indice.temas || []).forEach(t => {
+      const p = todas[t.tema];
+      let pct = 0;
+      if(p && p.abs && t.dur) pct = Math.min(100, p.abs / t.dur * 100);
+      const b = document.createElement('button'); b.className = 'tema';
+      b.innerHTML = `<div class="n">${t.tema}</div><div class="i"><b>${esc(t.titulo.replace(/^\d+\s*[—-]\s*/,''))}</b><span>${fmtH(t.dur)} · ${t.partes} partes${pct ? ' · ' + Math.round(pct) + ' % escuchado' : ''}</span><div class="barra"><i style="width:${pct}%"></i></div></div>`;
+      b.onclick = () => abrir(t.tema, p ? p : null);
+      cont.appendChild(b);
+    });
+    const bc = $('btn-cont');
+    if(pos && (indice.temas || []).some(t => t.tema === pos.tema)){
+      const t = indice.temas.find(x => x.tema === pos.tema);
+      bc.classList.remove('hide');
+      $('c-tit').textContent = `Tema ${pos.tema}` + (pos.art ? ' · ' + pos.art : '');
+      $('c-sub').textContent = pos.abs ? `Vas por el minuto ${Math.round(pos.abs/60)} de ${Math.round(t.dur/60)}` : '';
+      bc.onclick = () => abrir(pos.tema, pos, true);
+    } else bc.classList.add('hide');
+  }
+
+  // ---------------- reproductor ----------------
+  async function abrir(n, pos, auto){
+    tema = n;
+    const d = await cargarTema(n);
+    $('inicio').classList.add('hide'); $('play').classList.remove('hide');
+    $('p-tema').textContent = `Tema ${n}`;
+    vel = ls.get('vel', 1); au.playbackRate = vel; $('b-vel').textContent = vel + '×';
+    cargarParte(pos ? pos.p : 0, pos ? pos.t : 0, auto !== false);
+  }
+
+  function cargarParte(p, t, reproducir){
+    parte = p; const pa = datos.partes[p];
+    items = pa.it; pendiente = t || 0;
+    pintarTexto();
+    au.src = 'audio/' + pa.f;
+    au.playbackRate = vel;
+    au.load();
+    if(reproducir){ const pr = au.play(); if(pr && pr.catch) pr.catch(() => {}); }
+  }
+
+  function pintarTexto(){
+    const cont = $('texto'); cont.innerHTML = ''; elItems = []; actItem = -1;
+    const fr = document.createDocumentFragment();
+    items.forEach((it, i) => {
+      const d = document.createElement('div'); d.className = 'it k-' + it.k; d.textContent = it.x;
+      d.onclick = () => { au.currentTime = it.t; if(au.paused) au.play().catch(()=>{}); };
+      fr.appendChild(d); elItems.push(d);
+    });
+    cont.appendChild(fr);
+  }
+
+  au.addEventListener('loadedmetadata', () => {
+    if(pendiente != null){ try{ au.currentTime = pendiente; }catch(e){} pendiente = null; }
+    au.playbackRate = vel;
+    actualizar(true);
+  });
+  au.addEventListener('ended', () => {
+    if(parte + 1 < datos.partes.length) cargarParte(parte + 1, 0, true);
+    else { guardar(true); $('b-play').textContent = '▶'; }
+  });
+  au.addEventListener('play', () => { $('b-play').textContent = '⏸'; if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+  au.addEventListener('pause', () => { $('b-play').textContent = '▶'; guardar(true); if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
+  au.addEventListener('error', () => { $('p-pos').textContent = 'No se pudo cargar el audio (¿sin conexión?)'; });
+  setInterval(() => { if(datos && !$('play').classList.contains('hide')) actualizar(false); }, 300);
+
+  function itemActual(t){
+    let lo = 0, hi = items.length - 1, r = 0;
+    while(lo <= hi){ const m = (lo + hi) >> 1; if(items[m].t <= t + 0.05){ r = m; lo = m + 1; } else hi = m - 1; }
+    return r;
+  }
+  function artActual(){
+    const a = datos.arts; let r = 0;
+    for(let i = 0; i < a.length; i++){ if(a[i].p < parte || (a[i].p === parte && a[i].t <= au.currentTime + 0.05)) r = i; else break; }
+    return r;
+  }
+  function absTiempo(){ let s = 0; for(let i = 0; i < parte; i++) s += datos.partes[i].dur; return s + (au.currentTime || 0); }
+  function actualizar(forzar){
+    if(!datos || !items.length) return;
+    const t = au.currentTime || 0, dur = au.duration || datos.partes[parte].dur;
+    const i = itemActual(t);
+    if(i !== actItem || forzar){
+      if(actItem >= 0 && elItems[actItem]) elItems[actItem].classList.remove('on');
+      actItem = i;
+      const el = elItems[i]; if(el){ el.classList.add('on'); el.scrollIntoView({block:'center', behavior: forzar ? 'auto' : 'smooth'}); }
+      const ai = artActual(), a = datos.arts[ai];
+      if(a){ $('p-art').textContent = a.h; metaSesion(a); }
+    }
+    if(!$('seek').matches(':active')) $('seek').value = dur ? Math.round(t / dur * 1000) : 0;
+    $('t-act').textContent = fmt(t); $('t-res').textContent = '-' + fmt(Math.max(0, dur - t));
+    const tot = datos.partes.reduce((s, p) => s + p.dur, 0);
+    $('p-pos').textContent = `Parte ${parte + 1}/${datos.partes.length} · quedan ${fmtH(tot - absTiempo())}`;
+    guardar(false);
+  }
+
+  function guardar(fuerza){
+    const ahora = Date.now();
+    if(!fuerza && ahora - ultGuardado < 2000) return;
+    if(!datos) return; ultGuardado = ahora;
+    const a = datos.arts[artActual()] || {};
+    const pos = {tema: datos.tema, p: parte, t: Math.max(0, Math.floor((au.currentTime || 0) - 1)), abs: absTiempo(), art: a.h || ''};
+    ls.set('pos', pos);
+    const todas = ls.get('posTemas', {}); todas[datos.tema] = pos; ls.set('posTemas', todas);
+  }
+
+  // ---------------- navegación por artículos ----------------
+  function irAArt(i, reproducir){
+    const a = datos.arts[Math.max(0, Math.min(datos.arts.length - 1, i))];
+    if(a.p === parte){ au.currentTime = a.t; if(reproducir !== false && au.paused) au.play().catch(()=>{}); }
+    else cargarParte(a.p, a.t, true);
+  }
+  function sigArt(){ irAArt(artActual() + 1); }
+  function antArt(){
+    const i = artActual(), a = datos.arts[i];
+    const dentro = a.p === parte ? au.currentTime - a.t : 99;
+    irAArt(dentro > 4 ? i : i - 1);
+  }
+  function salta(d){ au.currentTime = Math.max(0, Math.min((au.duration || 1e9) - 0.5, au.currentTime + d)); }
+
+  $('b-play').onclick = () => { if(au.paused) au.play().catch(()=>{}); else au.pause(); };
+  $('b-sig').onclick = sigArt; $('b-ant').onclick = antArt;
+  $('b-m15').onclick = () => salta(-15); $('b-p15').onclick = () => salta(15);
+  $('b-vel').onclick = () => { const i = VELS.indexOf(vel); vel = VELS[(i + 1) % VELS.length]; au.playbackRate = vel; ls.set('vel', vel); $('b-vel').textContent = vel + '×'; };
+  $('seek').oninput = e => { const dur = au.duration || datos.partes[parte].dur; au.currentTime = e.target.value / 1000 * dur; };
+  $('btn-atras').onclick = () => { au.pause(); guardar(true); $('play').classList.add('hide'); $('inicio').classList.remove('hide'); pintarInicio(); };
+
+  // índice
+  $('btn-indice').onclick = () => {
+    const cur = artActual(), cont = $('lista'); cont.innerHTML = '';
+    $('i-tit').textContent = 'Tema ' + datos.tema + ' · Índice';
+    datos.arts.forEach((a, i) => {
+      const b = document.createElement('button');
+      b.className = 'ar' + (a.k === 't' ? ' t' : '') + (i === cur ? ' on' : '');
+      let ab = a.s && /EXOF|EXAMEN/.test(a.s) ? '<span class="s of">OFICIAL</span>' : (a.s && /EX|✱/.test(a.s) ? '<span class="s ex">EX</span>' : '');
+      let ab0 = 0; for(let k = 0; k < a.p; k++) ab0 += datos.partes[k].dur;
+      b.innerHTML = `<span class="tm">${fmt(ab0 + a.t)}</span>${esc(a.h)}${ab}`;
+      b.onclick = () => { $('indice').classList.add('hide'); irAArt(i); };
+      cont.appendChild(b);
+    });
+    $('indice').classList.remove('hide');
+    const on = cont.querySelector('.on'); if(on) on.scrollIntoView({block:'center'});
+  };
+  $('i-cerrar').onclick = () => $('indice').classList.add('hide');
+  $('indice').onclick = e => { if(e.target.id === 'indice') $('indice').classList.add('hide'); };
+
+  // ---------------- pantalla de bloqueo / coche ----------------
+  function metaSesion(a){
+    if(!('mediaSession' in navigator) || !window.MediaMetadata) return;
+    navigator.mediaSession.metadata = new MediaMetadata({title: a.h, artist: `Tema ${datos.tema}`, album: 'Audio Exprés', artwork: [{src:'icon-512.png', sizes:'512x512', type:'image/png'}]});
+  }
+  if('mediaSession' in navigator){
+    const ms = navigator.mediaSession, set = (a, f) => { try{ ms.setActionHandler(a, f); }catch(e){} };
+    set('play', () => au.play().catch(()=>{}));
+    set('pause', () => au.pause());
+    set('nexttrack', sigArt);
+    set('previoustrack', antArt);
+    set('seekbackward', null); set('seekforward', null);
+    set('seekto', e => { if(e.seekTime != null) au.currentTime = e.seekTime; });
+  }
+  window.addEventListener('pagehide', () => guardar(true));
+  document.addEventListener('visibilitychange', () => { if(document.hidden) guardar(true); });
+
+  if('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  cargarIndice();
+})();
+</script>
+</body>
+</html>
