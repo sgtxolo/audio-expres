@@ -58,6 +58,18 @@ h1{font-size:26px;margin:6px 0 2px}
 .it.k-vis.on .vis{box-shadow:0 0 0 3px var(--acc)}
 .it .ex-sello{display:inline-block;margin-left:6px;border:2px solid #c0392b;color:#c0392b;border-radius:50%;font-size:.6rem;font-weight:900;padding:3px 4px;line-height:1;vertical-align:middle}
 .it .plg{border-bottom:1.5px dotted #8a8f84}
+/* Modo compacto: sin cabecera y con los controles reducidos a una fila fina */
+.slim{display:none;align-items:center;gap:6px}
+.slim .ib{width:44px;height:44px}
+.slim .pp{background:var(--acc);color:#1a1405;font-weight:800;width:56px}
+.slim #s-t{flex:1;text-align:right;color:var(--mut);font-size:13px;font-variant-numeric:tabular-nums}
+.sprog{display:none;height:3px;background:#2a3858;margin:-10px -12px 8px}
+.sprog i{display:block;height:100%;width:0;background:var(--acc)}
+body.compacto .top,body.compacto .full{display:none}
+body.compacto .slim,body.compacto .sprog{display:flex}
+body.compacto .sprog{display:block}
+body.compacto .ctl{padding-top:10px;padding-bottom:calc(6px + env(safe-area-inset-bottom))}
+@media (max-height:500px){.b{height:50px}.b.big{height:56px}.prog input{height:20px}}
 .vers{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 .ver{flex:1;min-width:130px;text-align:left;background:var(--panel2);border-radius:12px;padding:9px 12px}
 .ver b{display:block;font-size:14px}
@@ -106,6 +118,17 @@ h1{font-size:26px;margin:6px 0 2px}
   </div>
   <div id="texto"></div>
   <div class="ctl">
+    <div class="sprog"><i id="s-bar"></i></div>
+    <div class="slim">
+      <button class="ib" id="s-atras" aria-label="Volver">‹</button>
+      <button class="ib" id="s-indice" aria-label="Índice">☰</button>
+      <button class="ib" id="s-ant" aria-label="Artículo anterior">⏮</button>
+      <button class="ib pp" id="s-play" aria-label="Reproducir / pausar">▶</button>
+      <button class="ib" id="s-sig" aria-label="Artículo siguiente">⏭</button>
+      <span id="s-t"></span>
+      <button class="ib" id="s-exp" aria-label="Mostrar controles">⌃</button>
+    </div>
+    <div class="full">
     <div class="prog"><span id="t-act">0:00</span><input type="range" id="seek" min="0" max="1000" value="0"><span id="t-res">-0:00</span></div>
     <div class="fila">
       <button class="b" id="b-ant" aria-label="Artículo anterior">⏮<small>art.</small></button>
@@ -114,7 +137,8 @@ h1{font-size:26px;margin:6px 0 2px}
       <button class="b" id="b-p15" aria-label="Adelante 15 segundos">↻<small>15 s</small></button>
       <button class="b" id="b-sig" aria-label="Artículo siguiente">⏭<small>art.</small></button>
     </div>
-    <div class="mini"><button class="vel" id="b-vel">1×</button><span id="p-pos" style="color:var(--mut);font-size:13px;align-self:center"></span></div>
+    <div class="mini"><button class="vel" id="b-vel">1×</button><span id="p-pos" style="color:var(--mut);font-size:13px;align-self:center"></span><button class="vel" id="b-comp" aria-label="Ocultar controles">⌄ Ocultar</button></div>
+    </div>
   </div>
 </section>
 
@@ -228,8 +252,8 @@ h1{font-size:26px;margin:6px 0 2px}
     if(parte + 1 < datos.partes.length) cargarParte(parte + 1, 0, true);
     else { guardar(true); $('b-play').textContent = '▶'; }
   });
-  au.addEventListener('play', () => { $('b-play').textContent = '⏸'; if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
-  au.addEventListener('pause', () => { $('b-play').textContent = '▶'; guardar(true); if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
+  au.addEventListener('play', () => { $('b-play').textContent = '⏸'; $('s-play').textContent = '⏸'; if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+  au.addEventListener('pause', () => { $('b-play').textContent = '▶'; $('s-play').textContent = '▶'; guardar(true); if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
   au.addEventListener('error', () => { $('p-pos').textContent = 'No se pudo cargar el audio (¿sin conexión?)'; });
   setInterval(() => { if(datos && !$('play').classList.contains('hide')) actualizar(false); }, 300);
 
@@ -257,6 +281,7 @@ h1{font-size:26px;margin:6px 0 2px}
     }
     if(!$('seek').matches(':active')) $('seek').value = dur ? Math.round(t / dur * 1000) : 0;
     $('t-act').textContent = fmt(t); $('t-res').textContent = '-' + fmt(Math.max(0, dur - t));
+    $('s-t').textContent = '-' + fmt(Math.max(0, dur - t)); $('s-bar').style.width = (dur ? t / dur * 100 : 0) + '%';
     const tot = datos.partes.reduce((s, p) => s + p.dur, 0);
     $('p-pos').textContent = `Parte ${parte + 1}/${datos.partes.length} · quedan ${fmtH(tot - absTiempo())}`;
     guardar(false);
@@ -286,7 +311,19 @@ h1{font-size:26px;margin:6px 0 2px}
   }
   function salta(d){ au.currentTime = Math.max(0, Math.min((au.duration || 1e9) - 0.5, au.currentTime + d)); }
 
-  $('b-play').onclick = () => { if(au.paused) au.play().catch(()=>{}); else au.pause(); };
+  $('b-play').onclick = $('s-play').onclick = () => { if(au.paused) au.play().catch(()=>{}); else au.pause(); };
+  $('s-ant').onclick = () => antArt(); $('s-sig').onclick = () => sigArt();
+  $('s-atras').onclick = () => $('btn-atras').click(); $('s-indice').onclick = () => $('btn-indice').click();
+  // modo compacto: por defecto activo en horizontal; se recuerda la elección
+  function compacto(on, guardarlo){
+    document.body.classList.toggle('compacto', on);
+    if(guardarlo !== false) ls.set('compacto', on);
+    setTimeout(() => { if(datos) actualizar(true); }, 60);
+  }
+  const guardadoC = ls.get('compacto', null);
+  compacto(guardadoC != null ? guardadoC : window.matchMedia('(max-height:500px)').matches, false);
+  try{ window.matchMedia('(max-height:500px)').addEventListener('change', e => compacto(e.matches, false)); }catch(e){}   // al girar el móvil
+  $('b-comp').onclick = () => compacto(true); $('s-exp').onclick = () => compacto(false);
   $('b-sig').onclick = sigArt; $('b-ant').onclick = antArt;
   $('b-m15').onclick = () => salta(-15); $('b-p15').onclick = () => salta(15);
   $('b-vel').onclick = () => { const i = VELS.indexOf(vel); vel = VELS[(i + 1) % VELS.length]; au.playbackRate = vel; ls.set('vel', vel); $('b-vel').textContent = vel + '×'; };

@@ -1,5 +1,5 @@
 // Service worker: guarda la app y los índices (el audio se transmite por streaming, sin caché)
-const CACHE = 'audio-expres-v2';
+const CACHE = 'audio-expres-v3';
 const BASE = ['./', 'index.html', 'estilos-esquema.css', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
