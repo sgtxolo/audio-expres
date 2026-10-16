@@ -54,6 +54,7 @@ def ordinal(romano, fem):
 def narrar(t):
     """Texto tal como aparece -> texto para que la voz lo lea bien."""
     t = limpia_espacios(t)
+    t = re.sub(r"\(\s*…\s*\)", " ", t)                                   # «(…)» literal
     t = re.sub(r"[⚠🎯✔→•▶◀✱★☆✓✗✘▪■□●○]", " ", t)
     t = re.sub(r"[\U0001F300-\U0001FAFF☀-➿]", " ", t)       # emojis
     t = re.sub(r"\s*·\s*R\d+\b", "", t)                                   # «· R13»
@@ -113,53 +114,114 @@ def hijos_bloque(e):
     return any(isinstance(c.tag, str) and c.tag in BLOQUES for c in e)
 
 
+def esc(s):
+    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+TAGS_INLINE = {"mark", "u", "b", "i", "em", "strong", "span", "br", "sub", "sup"}
+TAGS_VIS = TAGS_INLINE | {"div", "ul", "ol", "li", "h5", "p"}
+
+
+def clases_ok(e, todas):
+    cl = (e.get("class") or "").split()
+    if not todas:
+        cl = [c for c in cl if c.startswith("m-") or c in ("r-ia", "r-vec", "ro", "az", "o", "v", "c", "n")]
+    return " ".join(cl)
+
+
+def san(e, vis=False):
+    """HTML saneado de un elemento (solo etiquetas y clases de estilo; sin atributos de comportamiento)."""
+    cl = e.get("class") or ""
+    if not isinstance(e.tag, str):
+        return ""
+    if "ex-sello" in cl or (e.tag == "mark" and "ex-q" in cl):
+        return ""
+    interior = inner(e, vis)
+    tags = TAGS_VIS if vis else TAGS_INLINE
+    if e.tag not in tags:
+        return interior
+    if e.tag == "span" and not vis:
+        if "ex-plg" in cl:
+            return f'<span class="plg">{interior}</span>'
+        c = clases_ok(e, False)
+        return f'<span class="{c}">{interior}</span>' if c else interior
+    c = clases_ok(e, vis)
+    if e.tag == "br":
+        return "<br>"
+    return f'<{e.tag}{(" class=" + chr(34) + c + chr(34)) if c else ""}>{interior}</{e.tag}>'
+
+
+def inner(e, vis=False):
+    s = esc(e.text)
+    for c in e:
+        s += san(c, vis) + esc(c.tail)
+    return s
+
+
+def limpia_html(h):
+    h = re.sub(r"(?<![\w-])R\d{1,2}\b\s*", "", h)
+    h = re.sub(r"\s*\b\d+ preguntas?( más de este artículo)?\b", "", h)
+    h = re.sub(r"\b(EXOF|EXAMEN)\b\s*", "", h)
+    h = re.sub(r"(?<![\w-])EX\b\s*", "", h)
+    h = h.replace("✱", "")
+    h = re.sub(r"\(\s*…\s*\)", "(…)", h)
+    h = re.sub(r"(?:[\s·]|&nbsp;)+$", "", h)
+    return re.sub(r"\s+", " ", h).strip()
+
+
 def unidades(e):
-    """Lista de textos (uno por 'línea' visible) de un elemento."""
+    """Lista de (texto, html) — uno por 'línea' visible — de un elemento."""
     out, buf = [], []
 
     def vuelca():
-        s = limpia_espacios("".join(buf)); buf.clear()
+        s = limpia_espacios("".join(t for t, _ in buf)); hh = "".join(h for _, h in buf); buf.clear()
         if len(s) > 1:
-            out.append(s)
+            out.append((s, hh))
 
     if e.text:
-        buf.append(e.text)
+        buf.append((e.text, esc(e.text)))
     for c in e:
         if not isinstance(c.tag, str):
-            if c.tail: buf.append(c.tail)
+            if c.tail: buf.append((c.tail, esc(c.tail)))
             continue
         if c.tag in BLOQUES:
             vuelca()
             if "vis-sub" in (c.get("class") or "") and not hijos_bloque(c):
-                partes = [texto(s) for s in c if isinstance(s.tag, str)]
-                s = "; ".join(p for p in partes if p) if partes else texto(c)
-                if s: out.append(s)
+                hijos = [s for s in c if isinstance(s.tag, str)]
+                partes = [(texto(s), inner(s)) for s in hijos] if hijos else [(texto(c), inner(c))]
+                partes = [p for p in partes if p[0]]
+                if partes: out.append(("; ".join(p[0] for p in partes), "; ".join(p[1] for p in partes)))
             elif c.tag == "tr":
-                celdas = [texto(x) for x in c if isinstance(x.tag, str)]
-                s = ", ".join(x for x in celdas if x)
-                if s: out.append(s)
+                celdas = [(texto(x), inner(x)) for x in c if isinstance(x.tag, str)]
+                celdas = [x for x in celdas if x[0]]
+                if celdas: out.append((", ".join(x[0] for x in celdas), ", ".join(x[1] for x in celdas)))
             elif hijos_bloque(c):
                 out.extend(unidades(c))
             else:
                 s = texto(c)
-                if len(s) > 1: out.append(s)
+                if len(s) > 1: out.append((s, inner(c)))
         else:
-            buf.append(c.text_content())
+            buf.append((c.text_content(), san(c)))
         if c.tail:
-            buf.append(c.tail)
+            buf.append((c.tail, esc(c.tail)))
     vuelca()
     return out
 
 
-def parsear(html):
+def parsear(html, corto=False):
     raiz = lxml.html.fragment_fromstring(html, create_parent="div")
+    if corto:   # versión corta: sin el texto oculto bajo los «(…)» desplegables ni los huecos
+        for e in list(raiz.iter("span")):
+            cl = e.get("class") or ""
+            if ("ex-plg" in cl or "hueco-txt" in cl) and e.getparent() is not None:
+                e.drop_tree()
     elems = []        # {'tipo','h','sello','us':[...]}
     for c in raiz:
         if not isinstance(c.tag, str):
             continue
         cl = c.get("class") or ""
         if "bloque-titulo" in cl:
-            elems.append({"tipo": "titulo", "h": texto(c), "sello": "", "us": []})
+            elems.append({"tipo": "titulo", "h": texto(c), "hh": inner(c), "sello": "", "us": []})
         elif "ex-ficha" in cl:
             cab = next((x for x in c if "ex-fh" in (x.get("class") or "")), None)
             sellos = []
@@ -169,19 +231,20 @@ def parsear(html):
                         sellos.append(texto(s))
                         s.drop_tree()
                 h = texto(cab)
+                hh = inner(cab)
             else:
-                h = ""
+                h = hh = ""
             sello = " ".join(sellos)
             cuerpo = next((x for x in c if "ex-fb" in (x.get("class") or "")), None)
             us = unidades(cuerpo) if cuerpo is not None else []
-            # visuales dentro de la ficha
-            elems.append({"tipo": "ficha", "h": h, "sello": sello, "us": us})
+            elems.append({"tipo": "ficha", "h": h, "hh": hh, "sello": sello, "us": us})
         elif "vis" in cl.split():
             t = next((x for x in c if "vis-t" in (x.get("class") or "")), None)
             titulo = texto(t) if t is not None else ""
+            vhtml = san(c, True)
             if t is not None:
                 c.remove(t)
-            elems.append({"tipo": "vis", "h": titulo, "sello": "", "us": unidades(c)})
+            elems.append({"tipo": "vis", "h": titulo, "hh": vhtml, "sello": "", "us": unidades(c)})
         else:
             us = unidades(c)
             if us:
@@ -208,33 +271,41 @@ def limpia_display(t):
     return limpia_espacios(t)
 
 
+def insignias(sello):
+    out = ""
+    for tok in sello.split():
+        if tok in ("EXOF", "EXAMEN", "EX"):
+            out += f' <span class="ex-sello">{tok}</span>'
+        elif tok in ("✱", "*"):
+            out += ' <span class="m-ast"></span>'
+    return out
+
+
 def a_items(e):
-    """Elemento -> lista de (clase, texto_mostrado, texto_narrado)."""
+    """Elemento -> lista de (clase, texto_mostrado, texto_narrado, html)."""
     items = []
     if e["tipo"] == "titulo":
         h = limpia_display(e["h"])
-        items.append(("t", h, narrar(h) + "."))
+        items.append(("t", h, narrar(h) + ".", limpia_html(e["hh"])))
     elif e["tipo"] == "ficha":
         cue = cue_de(e["sello"])
         h = limpia_display(e["h"])
         narr = (cue + ". " if cue else "") + narrar(h) + "."
-        items.append(("h", h, narr))
-        for u in e["us"]:
+        items.append(("h", h, narr, limpia_html(e["hh"]) + insignias(e["sello"])))
+        for u, hu in e["us"]:
             u = limpia_display(u)
             if re.fullmatch(r"[\d\s]*pregunta.*|", u, re.I):
                 continue
-            items.append(("p", u, narrar(u)))
+            items.append(("p", u, narrar(u), limpia_html(hu)))
     elif e["tipo"] == "vis":
         h = limpia_display(e["h"])
-        items.append(("h", "Cuadro: " + h, "Cuadro. " + narrar(h) + "."))
-        for u in e["us"]:
-            u = limpia_display(u)
-            items.append(("v", u, narrar(u)))
+        cuerpo = ". ".join(narrar(re.sub(r"^(\d{1,2}|=)(?=[^\d\s])", r"\1 ", limpia_display(u))).rstrip(".") for u, _ in e["us"])
+        items.append(("vis", "Cuadro: " + h, "Cuadro. " + narrar(h) + ". " + cuerpo + ".", e["hh"]))
     else:
-        for u in e["us"]:
+        for u, hu in e["us"]:
             u = limpia_display(u)
-            items.append(("p", u, narrar(u)))
-    return [(k, d, n) for k, d, n in items if len(n) > 1]
+            items.append(("p", u, narrar(u), limpia_html(hu)))
+    return [it for it in items if len(it[2]) > 1]
 
 
 # ---------------------------------------------------------------- audio
@@ -276,7 +347,7 @@ async def sintetiza(texto_n, voz, cache, sem):
 async def principal(a):
     ruta_html = os.path.join(RAIZ, "work", f"expres-T{a.tema}.html")
     html = open(ruta_html, encoding="utf-8").read()
-    elems = parsear(html)
+    elems = parsear(html, a.ver == "corto")
     todos = [(i, it) for i, e in enumerate(elems) for it in a_items(e)]
     if a.limite:
         todos = todos[: a.limite]
@@ -320,13 +391,13 @@ async def principal(a):
         if not items_p:
             return
         n = len(partes) + 1
-        nombre = f"T{a.tema}-p{n:02d}.mp3"
+        nombre = f"T{a.tema}-{a.ver}-p{n:02d}.mp3"
         with open(os.path.join(RAIZ, "audio", nombre), "wb") as f:
             f.write(buf)
         partes.append({"f": nombre, "dur": round(len(buf) * 8 / KBPS, 2), "mb": round(len(buf) / 1e6, 2), "it": items_p})
         buf, items_p, t = bytearray(), [], 0.0
 
-    for (idx, (k, disp, narr)), audio in zip(todos, audios):
+    for (idx, (k, disp, narr, hx)), audio in zip(todos, audios):
         cambio = idx != ultimo_el
         # cortar parte solo al empezar un bloque nuevo
         if cambio and t >= OBJETIVO_PARTE:
@@ -335,7 +406,10 @@ async def principal(a):
             ultimo_el = idx
         if k in ("t", "h") and elems[idx]["tipo"] in ("titulo", "ficha"):
             arts.append({"h": disp, "p": len(partes), "t": round(t, 2), "k": k, "s": elems[idx]["sello"]})
-        items_p.append({"t": round(t, 2), "k": k, "x": disp})
+        it_d = {"t": round(t, 2), "k": k, "x": disp}
+        if "<" in hx:
+            it_d["hx"] = hx
+        items_p.append(it_d)
         buf += audio
         pausa = PAUSA_H if k in ("t", "h") else PAUSA_P
         buf += SILENCIO * pausa
@@ -343,17 +417,18 @@ async def principal(a):
     cierra()
     # tiempos de 'arts' referidos a partes: ya llevan índice de parte
     titulo = re.sub(r"<[^>]+>", "", elems[0]["h"]) if elems else f"Tema {a.tema}"
-    datos = {"tema": int(a.tema), "titulo": titulo, "voz": a.voz, "partes": partes, "arts": arts}
-    with open(os.path.join(RAIZ, "datos", f"T{a.tema}.json"), "w", encoding="utf-8") as f:
+    ident = f"T{a.tema}-{a.ver}"
+    datos = {"id": ident, "tema": int(a.tema), "ver": a.ver, "titulo": titulo, "voz": a.voz, "partes": partes, "arts": arts}
+    with open(os.path.join(RAIZ, "datos", f"{ident}.json"), "w", encoding="utf-8") as f:
         json.dump(datos, f, ensure_ascii=False, separators=(",", ":"))
     # índice general
     ruta_i = os.path.join(RAIZ, "datos", "indice.json")
     ind = json.load(open(ruta_i, encoding="utf-8")) if os.path.exists(ruta_i) else {"temas": []}
-    ind["temas"] = [x for x in ind["temas"] if x["tema"] != int(a.tema)]
-    ind["temas"].append({"tema": int(a.tema), "titulo": titulo,
+    ind["temas"] = [x for x in ind["temas"] if x.get("id") != ident]
+    ind["temas"].append({"id": ident, "tema": int(a.tema), "ver": a.ver, "titulo": titulo,
                          "dur": round(sum(p["dur"] for p in partes)),
                          "mb": round(sum(p["mb"] for p in partes), 1), "partes": len(partes)})
-    ind["temas"].sort(key=lambda x: x["tema"])
+    ind["temas"].sort(key=lambda x: (x["tema"], x["ver"] != "corto"))
     with open(ruta_i, "w", encoding="utf-8") as f:
         json.dump(ind, f, ensure_ascii=False, separators=(",", ":"))
     tot = sum(p["dur"] for p in partes)
@@ -364,6 +439,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("tema")
     ap.add_argument("--voz", default="es-ES-ElviraNeural")
+    ap.add_argument("--ver", choices=["corto", "completo"], default="completo")
     ap.add_argument("--dry", action="store_true")
     ap.add_argument("--limite", type=int, default=0)
     ap.add_argument("--muestra", type=int, default=25)

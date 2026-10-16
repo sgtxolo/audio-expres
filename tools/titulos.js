@@ -11,7 +11,7 @@ const ind = JSON.parse(fs.readFileSync(ruta, 'utf8'));
 for (const t of ind.temas) {
   if (!tit[t.tema]) continue;
   t.titulo = tit[t.tema];
-  const rt = path.join(raiz, 'datos', `T${t.tema}.json`);
+  const rt = path.join(raiz, 'datos', `${t.id}.json`);
   const d = JSON.parse(fs.readFileSync(rt, 'utf8')); d.titulo = t.titulo;
   fs.writeFileSync(rt, JSON.stringify(d));
 }

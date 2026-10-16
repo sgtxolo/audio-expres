@@ -10,6 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Audio Exprés</title>
+<link rel="stylesheet" href="estilos-esquema.css">
 <style>
 :root{--bg:#0b1220;--panel:#141d30;--panel2:#1b2742;--txt:#eef2fb;--mut:#93a0bd;--acc:#f5c451;--acc2:#3b82f6;--ok:#34d399;--rojo:#ff6b6b;--r:16px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -44,14 +45,24 @@ h1{font-size:26px;margin:6px 0 2px}
 .top .ttl small{color:var(--mut);display:block;font-size:12px}
 .top .ttl b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
 .ib{width:44px;height:44px;border-radius:12px;background:var(--panel2);font-size:20px;flex:none}
-#texto{flex:1;overflow:auto;padding:14px 16px 40px;scroll-behavior:smooth}
-.it{padding:10px 12px;margin:0 0 6px;border-radius:12px;color:#8a97b3;cursor:pointer;font-size:17px;line-height:1.55}
-.it.k-t{color:var(--acc);font-weight:800;font-size:19px;margin-top:18px}
-.it.k-h{color:#cfd9f0;font-weight:700;font-size:18px;margin-top:12px}
-.it.k-v{font-size:16px;padding-left:22px;position:relative}
-.it.k-v:before{content:"▸";position:absolute;left:8px;color:var(--acc2)}
-.it.on{background:#1d2c52;color:#fff;box-shadow:inset 3px 0 0 var(--acc)}
-.it.k-h.on,.it.k-t.on{color:var(--acc)}
+/* Papel del esquema: mismos colores, subrayados y cuadros que esquemas.html (estilos-esquema.css) */
+#texto{--fondo:#f5f4ee;--panel:#fff;--panel-alt:#eeece3;--texto:#1f2a24;--borde:#e2e0d5;--verde-osc:#163f30;--verde:#1c4d3c;--verde-med:#2f6b52;--radio-sm:12px;
+  flex:1;overflow:auto;padding:12px 10px 40px;background:var(--fondo);color:var(--texto);font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;scroll-behavior:smooth}
+.it{margin:0 0 8px;padding:10px 12px;border-radius:12px;background:var(--panel);border:1.5px solid var(--borde);opacity:.6;cursor:pointer;font-size:17px;line-height:1.75;transition:opacity .25s}
+.it.k-t{background:#555;color:#fff;border:0;font-weight:800;font-size:13px;letter-spacing:.5px;text-transform:uppercase;margin-top:22px;line-height:1.4}
+.it.k-h{background:var(--panel-alt);color:var(--verde-osc);font-weight:800;font-size:16px;margin-top:16px;line-height:1.4}
+.it.k-vis{padding:0;border:0;background:none;font-size:15px;line-height:1.4}
+.it.k-vis .vis{margin:0}
+.it.on{opacity:1;box-shadow:0 0 0 3px var(--acc)}
+.it.k-vis.on{box-shadow:none}
+.it.k-vis.on .vis{box-shadow:0 0 0 3px var(--acc)}
+.it .ex-sello{display:inline-block;margin-left:6px;border:2px solid #c0392b;color:#c0392b;border-radius:50%;font-size:.6rem;font-weight:900;padding:3px 4px;line-height:1;vertical-align:middle}
+.it .plg{border-bottom:1.5px dotted #8a8f84}
+.vers{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.ver{flex:1;min-width:130px;text-align:left;background:var(--panel2);border-radius:12px;padding:9px 12px}
+.ver b{display:block;font-size:14px}
+.ver span{color:var(--mut);font-size:12.5px}
+.ver:active{background:#243153}
 .ctl{background:var(--panel);padding:10px 12px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #243153}
 .prog{display:flex;align-items:center;gap:10px;color:var(--mut);font-size:13px;font-variant-numeric:tabular-nums}
 .prog input{flex:1;accent-color:var(--acc);height:28px}
@@ -138,42 +149,50 @@ h1{font-size:26px;margin:6px 0 2px}
     }catch(e){ indice = ls.get('indice-cache', {temas:[]}); }
     pintarInicio();
   }
-  async function cargarTema(n){
-    if(datos && datos.tema === n) return datos;
-    const r = await fetch(`datos/T${n}.json`);
+  async function cargarTema(id){
+    if(datos && datos.id === id) return datos;
+    const r = await fetch(`datos/${id}.json`);
     datos = await r.json();
     return datos;
   }
+  const NOMVER = {corto: '⚡ Corto', completo: '📚 Completo'};
 
   // ---------------- inicio ----------------
   function pintarInicio(){
     const cont = $('temas'); cont.innerHTML = '';
     const pos = ls.get('pos', null), todas = ls.get('posTemas', {});
-    (indice.temas || []).forEach(t => {
-      const p = todas[t.tema];
-      let pct = 0;
-      if(p && p.abs && t.dur) pct = Math.min(100, p.abs / t.dur * 100);
-      const b = document.createElement('button'); b.className = 'tema';
-      b.innerHTML = `<div class="n">${t.tema}</div><div class="i"><b>${esc(t.titulo.replace(/^\d+\s*[—-]\s*/,''))}</b><span>${fmtH(t.dur)} · ${t.partes} partes${pct ? ' · ' + Math.round(pct) + ' % escuchado' : ''}</span><div class="barra"><i style="width:${pct}%"></i></div></div>`;
-      b.onclick = () => abrir(t.tema, p ? p : null);
-      cont.appendChild(b);
+    const grupos = {};
+    (indice.temas || []).forEach(t => { (grupos[t.tema] = grupos[t.tema] || []).push(t); });
+    Object.keys(grupos).map(Number).sort((a, b) => a - b).forEach(n => {
+      const vs = grupos[n];
+      const card = document.createElement('div'); card.className = 'tema'; card.style.flexWrap = 'wrap';
+      card.innerHTML = `<div class="n">${n}</div><div class="i"><b>${esc(vs[0].titulo.replace(/^\d+\s*[—-]\s*/,''))}</b></div><div class="vers" style="width:100%"></div>`;
+      const fila = card.querySelector('.vers');
+      vs.forEach(t => {
+        const p = todas[t.id]; const pct = p && p.abs && t.dur ? Math.min(100, p.abs / t.dur * 100) : 0;
+        const b = document.createElement('button'); b.className = 'ver';
+        b.innerHTML = `<b>${NOMVER[t.ver] || t.ver}</b><span>${fmtH(t.dur)}${pct ? ' · ' + Math.round(pct) + ' %' : ''}</span><div class="barra"><i style="width:${pct}%"></i></div>`;
+        b.onclick = () => abrir(t.id, p || null);
+        fila.appendChild(b);
+      });
+      cont.appendChild(card);
     });
     const bc = $('btn-cont');
-    if(pos && (indice.temas || []).some(t => t.tema === pos.tema)){
-      const t = indice.temas.find(x => x.tema === pos.tema);
+    const t = pos && (indice.temas || []).find(x => x.id === pos.id);
+    if(t){
       bc.classList.remove('hide');
-      $('c-tit').textContent = `Tema ${pos.tema}` + (pos.art ? ' · ' + pos.art : '');
+      $('c-tit').textContent = `Tema ${pos.tema} · ${NOMVER[t.ver] || ''}` + (pos.art ? ' · ' + pos.art : '');
       $('c-sub').textContent = pos.abs ? `Vas por el minuto ${Math.round(pos.abs/60)} de ${Math.round(t.dur/60)}` : '';
-      bc.onclick = () => abrir(pos.tema, pos, true);
+      bc.onclick = () => abrir(pos.id, pos, true);
     } else bc.classList.add('hide');
   }
 
   // ---------------- reproductor ----------------
-  async function abrir(n, pos, auto){
-    tema = n;
-    const d = await cargarTema(n);
+  async function abrir(id, pos, auto){
+    tema = id;
+    const d = await cargarTema(id);
     $('inicio').classList.add('hide'); $('play').classList.remove('hide');
-    $('p-tema').textContent = `Tema ${n}`;
+    $('p-tema').textContent = `Tema ${d.tema} · ${NOMVER[d.ver] || ''}`;
     vel = ls.get('vel', 1); au.playbackRate = vel; $('b-vel').textContent = vel + '×';
     cargarParte(pos ? pos.p : 0, pos ? pos.t : 0, auto !== false);
   }
@@ -192,7 +211,8 @@ h1{font-size:26px;margin:6px 0 2px}
     const cont = $('texto'); cont.innerHTML = ''; elItems = []; actItem = -1;
     const fr = document.createDocumentFragment();
     items.forEach((it, i) => {
-      const d = document.createElement('div'); d.className = 'it k-' + it.k; d.textContent = it.x;
+      const d = document.createElement('div'); d.className = 'it k-' + it.k;
+      if(it.hx) d.innerHTML = it.hx; else d.textContent = it.x;
       d.onclick = () => { au.currentTime = it.t; if(au.paused) au.play().catch(()=>{}); };
       fr.appendChild(d); elItems.push(d);
     });
@@ -247,9 +267,9 @@ h1{font-size:26px;margin:6px 0 2px}
     if(!fuerza && ahora - ultGuardado < 2000) return;
     if(!datos) return; ultGuardado = ahora;
     const a = datos.arts[artActual()] || {};
-    const pos = {tema: datos.tema, p: parte, t: Math.max(0, Math.floor((au.currentTime || 0) - 1)), abs: absTiempo(), art: a.h || ''};
+    const pos = {id: datos.id, tema: datos.tema, p: parte, t: Math.max(0, Math.floor((au.currentTime || 0) - 1)), abs: absTiempo(), art: a.h || ''};
     ls.set('pos', pos);
-    const todas = ls.get('posTemas', {}); todas[datos.tema] = pos; ls.set('posTemas', todas);
+    const todas = ls.get('posTemas', {}); todas[datos.id] = pos; ls.set('posTemas', todas);
   }
 
   // ---------------- navegación por artículos ----------------
